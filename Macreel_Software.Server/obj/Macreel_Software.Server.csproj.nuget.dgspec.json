@@ -220,6 +220,10 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "FirebaseAdmin": {
+              "target": "Package",
+              "version": "[3.4.0, )"
+            },
             "Microsoft.AspNetCore.Authentication.JwtBearer": {
               "target": "Package",
               "version": "[8.0.0, )"
@@ -310,6 +314,10 @@
             "EPPlus": {
               "target": "Package",
               "version": "[8.4.0, )"
+            },
+            "FirebaseAdmin": {
+              "target": "Package",
+              "version": "[3.4.0, )"
             },
             "Microsoft.AspNetCore.Http.Abstractions": {
               "target": "Package",
