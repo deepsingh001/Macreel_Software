@@ -141,7 +141,7 @@ namespace Macreel_Software.Server.Controllers
             }
         }
 
-        [HttpGet("deleteRoleById")]
+        [HttpDelete("deleteRoleById")]
         public async Task<IActionResult> deleteRoleById(int roleId)
         {
             try
