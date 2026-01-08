@@ -322,7 +322,7 @@ namespace Macreel_Software.Server.Controllers
         }
 
 
-        [HttpGet("deleteDepartmentById")]
+        [HttpDelete("deleteDepartmentById")]
         public async Task<IActionResult> deleteDepartmetById(int depId)
         {
             try
@@ -495,7 +495,7 @@ namespace Macreel_Software.Server.Controllers
         }
 
 
-        [HttpGet("deleteDesignationById")]
+        [HttpDelete("deleteDesignationById")]
         public async Task<IActionResult> deleteDesignationById(int desId)
         {
             try
@@ -508,7 +508,6 @@ namespace Macreel_Software.Server.Controllers
                         status = true,
                         StatusCode = 200,
                         message = "Designation deleted successfully!!!"
-
                     });
                 }
                 else

@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ViewChild, OnInit } from '@angular/core';
-import { MatPaginator } from '@angular/material/paginator';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 import { ManageMasterdataService } from '../../../../core/services/manage-masterdata.service';
 import Swal from 'sweetalert2';
@@ -11,52 +11,87 @@ import Swal from 'sweetalert2';
   styleUrls: ['./add-role.component.css']
 })
 
-export class AddRoleComponent implements OnInit, AfterViewInit {
+export class AddRoleComponent implements OnInit {
 
   roleName: string = '';
-
   displayedColumns: string[] = ['srNo', 'name', 'action'];
   dataSource = new MatTableDataSource<PeriodicElement>([]);
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
+  pageSize: number = 5;
+  pageNumber: number = 1;
+  totalRecords: number = 0;
+  searchText: string = '';
+
+  editingRoleId: number | null = null;
+
   constructor(private master: ManageMasterdataService) { }
 
-  // ✅ PAGE LOAD PE API CALL
   ngOnInit(): void {
-    this.loadRoles(); // ✅ NOW PERFECT
+    this.loadRoles();
+
   }
 
-  ngAfterViewInit() {
-    this.dataSource.paginator = this.paginator;
-  }
-  //get role
+  // ngAfterViewInit() {
+  //   this.dataSource.paginator = this.paginator;
+  // }
+
+  // loadRoles() {
+  //   this.master.getRoles(this.pageNumber, this.pageSize, this.searchText).subscribe({
+  //     next: (res) => {
+  //       const roles = res.data || [];
+  //       this.totalRecords = res.totalRecords || roles.length;
+
+  //       this.dataSource.data = roles.map((item: any, index: number) => ({
+  //         srNo: (this.pageNumber - 1) * this.pageSize + index + 1,
+  //         id: item.id,
+  //         name: item.rolename
+  //       }));
+  //     },
+  //     error: (err) => {
+  //       console.error(err);
+  //       Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to load roles' });
+  //     }
+  //   });
+  // }
+
   loadRoles() {
-    this.master.getAllRoles().subscribe({
-      next: (res) => {
-        const roles = res.data || [];
+  this.master.getRoles(this.pageNumber, this.pageSize, this.searchText)
+    .subscribe(res => {
 
-        this.dataSource.data = roles.map((item: any, index: number) => ({
-          srNo: index + 1,
-          id: item.id,
-          name: item.rolename
-        }));
-      },
-      error: err => {
-        console.error(err);
-        alert('Failed to load roles');
-      }
+      console.log('TOTAL RECORDS 👉', res.totalRecords);
+      console.log('PAGE SIZE 👉', this.pageSize);
+
+      const roles = res.data || [];
+
+      this.totalRecords = res.totalRecords; // IMPORTANT
+      this.dataSource.data = roles.map((item: any, index: number) => ({
+        srNo: (this.pageNumber - 1) * this.pageSize + index + 1,
+        id: item.id,
+        name: item.rolename
+      }));
     });
+}
+
+
+  // Pagination change
+  onPageChange(event: PageEvent) {
+    this.pageSize = event.pageSize;
+    this.pageNumber = event.pageIndex + 1;
+    this.loadRoles();
   }
 
-  // Add or Update role using the same API
+  applyFilter(event: Event) {
+    const filterValue = (event.target as HTMLInputElement).value.trim();
+    this.searchText = filterValue;
+    this.pageNumber = 1; // Reset to first page
+    this.loadRoles();
+  }
+
   onSubmit() {
     if (!this.roleName.trim()) return;
 
-    const payload = {
-      id: this.editingRoleId || 0, // 0 → Add, >0 → Update
-      rolename: this.roleName
-    };
-
+    const payload = { id: this.editingRoleId || 0, rolename: this.roleName };
     this.master.AddRole(payload).subscribe({
       next: () => {
         Swal.fire({
@@ -65,24 +100,32 @@ export class AddRoleComponent implements OnInit, AfterViewInit {
           showConfirmButton: false,
           timer: 1500
         });
-
-        // Reset form
         this.roleName = '';
         this.editingRoleId = null;
-
-        // Reload table
         this.loadRoles();
       },
-      error: err => {
+      error: (err) => {
         console.error(err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error!',
-          text: this.editingRoleId ? 'Failed to update role' : 'Failed to add role'
-        });
+        Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to add/update role' });
       }
     });
   }
+
+  editRole(role: PeriodicElement) {
+    this.master.getRoleById(role.id).subscribe({
+      next: (res) => {
+        if (res.status && res.roleListbyid.length) {
+          const roleData = res.roleListbyid[0];
+          this.roleName = roleData.rolename;
+          this.editingRoleId = roleData.id;
+        } else {
+          Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to load role data' });
+        }
+      },
+      error: () => Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to fetch role data' })
+    });
+  }
+
   deleteRole(role: PeriodicElement) {
     Swal.fire({
       title: `Are you sure you want to delete ${role.name}?`,
@@ -90,82 +133,23 @@ export class AddRoleComponent implements OnInit, AfterViewInit {
       showCancelButton: true,
       confirmButtonColor: '#E6354B',
       cancelButtonColor: '#aaa',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel'
+      confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
       if (result.isConfirmed) {
         this.master.deleteRoleById(role.id).subscribe({
           next: () => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Deleted!',
-              text: `${role.name} has been deleted.`,
-              showConfirmButton: false,
-              timer: 1500
-            });
-
-            // Remove row locally for instant UI update
-            this.dataSource.data = this.dataSource.data
-              .filter(r => r.id !== role.id)
-              .map((r, i) => ({ ...r, srNo: i + 1 }));
+            Swal.fire({ icon: 'success', title: 'Deleted!', text: `${role.name} has been deleted.`, showConfirmButton: false, timer: 1500 });
+            this.loadRoles(); // Reload after deletion to reflect server-side pagination
           },
-          error: err => {
-            console.error(err);
-            Swal.fire({
-              icon: 'error',
-              title: 'Error!',
-              text: 'Failed to delete role'
-            });
-          }
+          error: () => Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to delete role' })
         });
       }
     });
-  }
-
-
-  editingRoleId: number | null = null;
-
-  editRole(role: PeriodicElement) {
-    this.master.getRoleById(role.id).subscribe({
-      next: (res) => {
-        if (res.status && res.roleListbyid.length) {
-          const roleData = res.roleListbyid[0];
-
-          // Populate form
-          this.roleName = roleData.rolename;
-
-          // Store ID in case you want to update later
-          this.editingRoleId = roleData.id;
-        } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error!',
-            text: 'Failed to load role data'
-          });
-        }
-      },
-      error: (err) => {
-        console.error(err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error!',
-          text: 'Failed to fetch role data'
-        });
-      }
-    });
-  }
-
-
-
-  applyFilter(event: Event) {
-    const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
   }
 }
 
 export interface PeriodicElement {
   srNo: number;
-  id: number;
-
+  id: number,
   name: string;
 }
